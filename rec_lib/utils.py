@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*-
 import multiprocessing
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 from numpy import *
@@ -15,30 +15,42 @@ def view_bar(num, total):
 
 
 # 字典按照value排序
-def sort_dict(dic, reverse=True):
-    return sorted(dic.items(), key=lambda d: d[1], reverse=reverse)
+def sort_dict(dic, reverse=True, key=lambda d: d[1]):
+    return sorted(dic.items(), key=key, reverse=reverse)
 
 
 # 读取评分表 user, item, score
-def read_checks_table(filename, split_sig='\t', uin=0, iin=4, scorein=None, timein=1, time_format='%Y-%m-%dT%H:%M:%SZ', lain=None, loin=None):
+def read_checks_table(filename, split_sig='\t', uin=0, iin=4, scorein=None, timein=None, time_format='%Y-%m-%dT%H:%M:%SZ', lain=None, loin=None, labelin=None, toffin=None):
+
+    # uin user index
+    # iin loc_index
+    # scorein score_index
+    # timein time index
+    # lain, loin: latitude,longitude index
+    # labelin label index
+    # toffin: time offset index Yang's dataset unit minute compared with UTC time
+
     table = {}
     with open(filename) as f:
         for each in f:
             try:
                 elements = each.strip().split(split_sig)
-                u = elements[uin]
-                i = elements[iin]
-                score = 1 if scorein is None else elements[scorein]
+                u = int(elements[uin])
+                i = int(elements[iin])
+                score = 1 if scorein is None else int(elements[scorein])
                 _time = None if timein is None else datetime.strptime(elements[timein], time_format)
+                if _time and toffin is not None:
+                    offset_minutes = int(elements[toffin])
+                    _time += timedelta(minutes=offset_minutes)
                 la = None if lain is None else float(elements[lain])
                 lo = None if loin is None else float(elements[loin])
+                label = None if labelin is None else elements[labelin]
                 if table.get(u) is not None:
-                    table[u].append((i, score, _time, la, lo))
+                    table[u].append((i, score, _time, la, lo, label))
                 else:
-                    table[u] = [(i, score, _time, la, lo)]
+                    table[u] = [(i, score, _time, la, lo, label)]
             except Exception as e:
                 print(split_sig)
-                print(elements)
                 raise e
 
     return table
@@ -58,21 +70,19 @@ def write_obj(filename, dic, root=''):
 
 
 # 读取列表归属字典（朋友集合等）
-def read_dic_set(filename, split_tag='\t'):
+def read_dic_set(filename, split_tag='\t', oin=0, ain=1):
     dic_f = {}
-
     with open(filename) as f:
         for each in f:
             es = each.strip().split(split_tag)
-            u1 = es[0]
-            u2 = es[1]
+            u1 = int(es[oin])
+            u2 = int(es[ain])
             if u1 == 'user1':
                 continue
             if dic_f.__contains__(u1):
                 dic_f[u1].add(u2)
             else:
                 dic_f[u1] = {u2}
-
     return dic_f
 
 
